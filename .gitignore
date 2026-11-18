@@ -1,0 +1,12 @@
+# .NET
+bin/
+obj/
+*.user
+# Godot
+game/.godot/
+game/.nuget/
+game/mono_crash.*
+# spritegen
+tools/spritegen/preview/
+__pycache__/
+TestResults/
