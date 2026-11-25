@@ -178,9 +178,25 @@ def flag():
     return im
 
 
+def punchclock():
+    """Free-standing shift clock by the necropolis gate: post, SIGN_WOOD
+    housing, SIGN_FACE dial with OUTLINE hands, card slot — the big sibling of
+    the tiny clock bolted to the necropolis wall."""
+    im, d = _img(16, 28)
+    d.line([(8, 18), (8, 27)], fill=P.OUTLINE, width=3)
+    d.line([(8, 18), (8, 27)], fill=P.SIGN_WOOD, width=2)
+    d.rounded_rectangle([2, 1, 14, 19], radius=2, fill=P.SIGN_WOOD, outline=P.OUTLINE, width=2)
+    d.ellipse([4, 3, 12, 11], fill=P.SIGN_FACE, outline=P.OUTLINE)
+    d.line([(8, 7), (8, 4)], fill=P.OUTLINE)
+    d.line([(8, 7), (10, 8)], fill=P.OUTLINE)
+    d.rectangle([4, 14, 12, 16], fill=P.OUTLINE)  # card slot
+    return im
+
+
 def emit_all(emit):
     """emit(name, sheet, meta) from generate.py; meta unused for props."""
     for name, im in [("tower_arrow", tower(False)), ("tower_cannon", tower(True)),
                      ("wall", wall()), ("necropolis", necropolis()),
-                     ("tower_knight", tower_knight()), ("moat", moat()), ("flag", flag())]:
+                     ("tower_knight", tower_knight()), ("moat", moat()), ("flag", flag()),
+                     ("punchclock", punchclock())]:
         emit(name, im, {"frameSize": 0, "animations": {}})

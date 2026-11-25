@@ -18,10 +18,14 @@ def _bone_limb(d, x0, y0, x1, y1, w=1, cap=1):
     d.ellipse([x1 - cap, y1 - cap, x1 + cap, y1 + cap], fill=P.BONE, outline=P.OUTLINE)
 
 
-def _head(d, cx, cy, r=4, front=False):
+def _head(d, cx, cy, r=4, front=False, eyes="open"):
     d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=P.BONE, outline=P.OUTLINE)
     if front:
-        d.point([(cx - 2, cy - 1), (cx + 2, cy - 1)], fill=P.EYE)
+        if eyes == "closed":  # proud little ^-^ lines
+            d.line([(cx - 3, cy - 1), (cx - 1, cy - 1)], fill=P.EYE)
+            d.line([(cx + 1, cy - 1), (cx + 3, cy - 1)], fill=P.EYE)
+        else:
+            d.point([(cx - 2, cy - 1), (cx + 2, cy - 1)], fill=P.EYE)
         d.point([(cx - 1, cy + 1), (cx, cy + 2), (cx + 1, cy + 1)], fill=P.EYE)  # smile
     else:
         # side profile: one eye dot + tiny grin, facing right, kept well
@@ -176,6 +180,65 @@ def _bone_pile(d, stage, variant=None, exploded=False):
             _bomb(d, 4, 15, lit=False)
 
 
+def _sign(d, cx, top_y):
+    """'see you tomorrow!' picket sign: SIGN_WOOD post, SIGN_FACE board with
+    EYE squiggle writing (24 px can't render letters; two scribble lines and a
+    dot read as a cheerful note). Sized and positioned by the caller to clear
+    the head and stay inside the 24px frame."""
+    d.line([(cx, top_y + 6), (cx, top_y + 13)], fill=P.OUTLINE, width=3)
+    d.line([(cx, top_y + 6), (cx, top_y + 13)], fill=P.SIGN_WOOD, width=2)
+    d.rectangle([cx - 5, top_y, cx + 5, top_y + 6], fill=P.SIGN_FACE, outline=P.OUTLINE)
+    d.line([(cx - 3, top_y + 2), (cx + 3, top_y + 2)], fill=P.EYE)
+    d.line([(cx - 3, top_y + 4), (cx + 1, top_y + 4)], fill=P.EYE)
+    d.point([(cx + 3, top_y + 4)], fill=P.EYE)
+
+
+def sign_frame(i, variant):
+    """6 frames: 0 sign at chest height, 1 hoisted, 2 held high with sparkles,
+    3-5 crumble with the sign left planted beside the pile. The body shifts
+    left of its usual center on frames 0-2 so the (wide) board has room to
+    sit clear of the head instead of covering the face."""
+    img, d = _frame()
+    cx = 11
+    lean = variant == "sprinter"
+    half_w = 2 if lean else 3
+    if i <= 2:
+        bx = 8
+        _ground_shadow(d, cx, 21)
+        _bone_limb(d, bx - 1, 16, bx - 3, 21, w=1, cap=1)
+        _bone_limb(d, bx + 1, 16, bx + 2, 21, w=1, cap=1)
+        _torso(d, bx, 9, 16, half_w=half_w)
+        sign_top = [12, 4, 0][i]
+        hold_x = 17
+        _bone_limb(d, bx + 2, 11, hold_x, sign_top + 6, w=1, cap=1)
+        if variant == "bomber":
+            # the sign only merits one hand; the bomb stays cradled in the other
+            hand = (bx - 4, 13)  # nudged 1px right of the bare-minimum hand pose for edge margin
+            _bone_limb(d, bx - 2, 11, *hand, w=1, cap=1)
+            _bomb(d, hand[0] - 1, hand[1])
+        elif i >= 1:
+            _bone_limb(d, bx - 2, 11, hold_x - 3, sign_top + 8, w=1, cap=1)  # both hands
+        if variant == "shieldbearer":
+            _shield(d, 1, 11, w=4, h=7)  # strapped to the free side, clear of legs/torso and the frame edge
+        _head(d, bx, 5, front=True)
+        d.point([(bx - 3, 6), (bx + 3, 6)], fill=P.BLUSH)
+        if variant == "shieldbearer":
+            _helmet(d, bx, 5)
+        elif variant == "sprinter":
+            _scarf(d, bx, 7, i)
+        elif variant == "bannerbones":
+            _banner(d, bx - 6, 10, 21)  # pole moves to the free side, pennant dropped beside the torso, clear of the head
+        _sign(d, hold_x, sign_top)      # drawn last: sign reads in front
+        if i == 2:
+            d.point([(bx - 5, 2), (hold_x + 5, 2), (bx - 2, 0)], fill=P.SPARK)
+    else:
+        _bone_pile(d, i - 3, variant)
+        if variant == "shieldbearer" and i == 3:
+            _shield(d, 2, 14, w=4, h=6)
+        _sign(d, 16, 8 + (i - 3))       # planted beside the pile, settling
+    return img
+
+
 def die_frame(i, gesture, variant):
     """6 frames: 0 face camera, 1-2 gesture (wave or salute), 3-5 cheerful
     crumble. `gesture` picks wave/salute; `variant` picks the character
@@ -187,37 +250,58 @@ def die_frame(i, gesture, variant):
 
     if i <= 2:
         _ground_shadow(d, cx, 21)
-        _bone_limb(d, cx - 1, 16, cx - 3, 21, w=1, cap=1)
-        _bone_limb(d, cx + 1, 16, cx + 2, 21, w=1, cap=1)
-        _torso(d, cx, 9, 16, half_w=half_w)
-
-        # non-gesturing arm rests on the belly, or holds the bomb steady
-        if variant == "bomber":
-            hand = (cx - 5, 13)
-            _bone_limb(d, cx - 2, 11, *hand, w=1, cap=1)
-            _bomb(d, hand[0] - 1, hand[1])
-        else:
-            _bone_limb(d, cx - 2, 11, cx - 4, 15, w=1, cap=1)
-
         if gesture == "wave":
-            # raised arm stays clear of the head (head right edge ~cx+4)
-            tips = [(cx + 5, 11), (cx + 7, 6), (cx + 5, 4)]
-            _bone_limb(d, cx + 2, 10, *tips[i], w=1, cap=1)
-        else:  # salute: hand snaps to the brow, just beside the head
-            tip = (cx + 5, 10) if i == 0 else (cx + 6, 3)
+            # loose goodbye: body rocks, near arm swings a big metronome arc,
+            # far arm joins from frame 1 — an unmistakable two-hand wave
+            rock = [0, 1, -1][i]
+            bx = cx + rock
+            _bone_limb(d, bx - 1, 16, cx - 4, 21, w=1, cap=1)   # legs splayed, planted
+            _bone_limb(d, bx + 1, 16, cx + 3, 21, w=1, cap=1)
+            _torso(d, bx, 9, 16, half_w=half_w)
+            near = [(cx + 5, 11), (cx + 8, 5), (cx + 2, 2)][i]
+            _bone_limb(d, bx + 2, 10, *near, w=1, cap=1)
+            far = [None, (cx - 7, 8), (cx - 4, 2)][i]
+            if far is None:
+                if variant == "bomber":
+                    hand = (bx - 5, 13)
+                    _bone_limb(d, bx - 2, 11, *hand, w=1, cap=1)
+                    _bomb(d, hand[0] - 1, hand[1])
+                else:
+                    _bone_limb(d, bx - 2, 11, bx - 4, 15, w=1, cap=1)
+            else:
+                _bone_limb(d, bx - 2, 10, *far, w=1, cap=1)
+                if variant == "bomber":
+                    _bomb(d, far[0] - 1, far[1] - 2)   # bomb rides the waving hand
+            head_x, head_eyes = bx, "open"
+        else:
+            # formal sign-off: heels snap together, spine straight, free arm
+            # pinned to the side, crisp brow salute held with a glint
+            bx = cx
+            _bone_limb(d, cx - 1, 16, cx - 1, 21, w=1, cap=1)   # legs vertical, together
+            _bone_limb(d, cx + 1, 16, cx + 1, 21, w=1, cap=1)
+            _torso(d, cx, 9, 16, half_w=half_w)
+            if variant == "bomber":
+                hand = (cx - 4, 14)
+                _bone_limb(d, cx - 2, 11, *hand, w=1, cap=1)
+                _bomb(d, hand[0] - 1, hand[1])
+            else:
+                _bone_limb(d, cx - 2, 11, cx - 3, 16, w=1, cap=1)  # arm at the side
+            tip = [(cx + 4, 12), (cx + 6, 3), (cx + 5, 3)][i]
             _bone_limb(d, cx + 2, 10, *tip, w=1, cap=1)
+            if i == 2:
+                d.point([(cx + 7, 2), (cx + 8, 4)], fill=P.SPARK)  # glint on the held salute
+            head_x, head_eyes = cx, ("closed" if i >= 1 else "open")
 
         if variant == "shieldbearer":
-            _shield(d, cx - 10, 11, w=4, h=7)
-
-        _head(d, cx, 5, front=True)
-        d.point([(cx - 3, 6), (cx + 3, 6)], fill=P.BLUSH)
+            _shield(d, bx - 10, 11, w=4, h=7)
+        _head(d, head_x, 5, front=True, eyes=head_eyes)
+        d.point([(head_x - 3, 6), (head_x + 3, 6)], fill=P.BLUSH)
         if variant == "shieldbearer":
-            _helmet(d, cx, 5)
+            _helmet(d, head_x, 5)
         elif variant == "sprinter":
-            _scarf(d, cx, 7, i)
+            _scarf(d, head_x, 7, i)
         elif variant == "bannerbones":
-            _banner(d, cx + 7, 1, 20)
+            _banner(d, bx + 7, 1, 20)
     else:
         _bone_pile(d, i - 3, variant)
         if variant == "shieldbearer" and i == 3:
@@ -336,6 +420,7 @@ ANIMS = {
     "die_wave":   {"row": 1, "frames": 6, "fps": 9,  "loop": False, "fn": lambda i, v: die_frame(i, "wave", v)},
     "die_salute": {"row": 2, "frames": 6, "fps": 9,  "loop": False, "fn": lambda i, v: die_frame(i, "salute", v)},
     "whack":      {"row": 3, "frames": 6, "fps": 10, "loop": False, "fn": whack_frame},
+    "die_sign":   {"row": 4, "frames": 6, "fps": 8,  "loop": False, "fn": sign_frame},
 }
 
 

@@ -46,4 +46,18 @@ public class BalanceDataTests
         var bad = b with { Cycle = b.Cycle with { WallHpGrowth = 1.0 } };
         Assert.Throws<ArgumentException>(() => bad.Validate());
     }
+
+    [Theory]
+    [InlineData(0.0)]
+    [InlineData(-0.5)]
+    [InlineData(1.5)]
+    public void ValidateRejectsMoatSpeedMultOutsideUnitInterval(double mult)
+    {
+        var b = TestBalance.Make();
+        var bad = b with { Kingdoms = new()
+            { b.Kingdoms[0], b.Kingdoms[1] with
+                { Moats = new() { new(Zone: 0, SpeedMult: mult) } } } };
+        var ex = Assert.Throws<ArgumentException>(() => bad.Validate());
+        Assert.Contains("SpeedMult", ex.Message);
+    }
 }

@@ -62,8 +62,12 @@ public sealed record BalanceData(
                 if (t.Zone < 0 || t.Zone >= ZoneCount)
                     throw new ArgumentException($"{k.Name}/{t.Name} Zone {t.Zone} out of range");
             foreach (var m in k.Moats)
+            {
                 if (m.Zone < 0 || m.Zone >= ZoneCount)
                     throw new ArgumentException($"{k.Name} moat Zone {m.Zone} out of range");
+                if (m.SpeedMult <= 0.0 || m.SpeedMult > 1.0)
+                    throw new ArgumentException($"{k.Name} moat SpeedMult {m.SpeedMult} must be in (0, 1]");
+            }
         }
     }
 }

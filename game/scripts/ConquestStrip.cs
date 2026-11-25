@@ -13,7 +13,8 @@ public partial class ConquestStrip : Control
 
     public override void _Ready()
     {
-        Position = new Vector2(400, 8);
+        AnchorLeft = 0.5f; AnchorRight = 0.5f;
+        OffsetLeft = -240; OffsetTop = 8;
         var row = new HBoxContainer();
         row.AddThemeConstantOverride("separation", 24);
         AddChild(row);
@@ -32,7 +33,7 @@ public partial class ConquestStrip : Control
             top.AddChild(flag); top.AddChild(name);
             var perk = new Label { Text = PerkLabel(k.Perk) };
             perk.AddThemeFontSizeOverride("font_size", 11);
-            perk.AddThemeColorOverride("font_color", new Color("c9d1bf"));
+            perk.AddThemeColorOverride("font_color", new Color("403342"));
             cell.AddChild(top); cell.AddChild(perk);
             row.AddChild(cell);
             _cells.Add((name, perk, flag));
@@ -51,8 +52,17 @@ public partial class ConquestStrip : Control
         };
     }
 
+    private int _lastKingdom = -1, _lastTier = -1, _lastPerks = -1;
+
     public void Refresh()
     {
+        // theme overrides allocate; only touch them when the strip actually changed
+        if (_lastKingdom == _sim.State.KingdomIndex && _lastTier == _sim.State.CycleTier
+            && _lastPerks == _sim.State.PerksUnlocked) return;
+        _lastKingdom = _sim.State.KingdomIndex;
+        _lastTier = _sim.State.CycleTier;
+        _lastPerks = _sim.State.PerksUnlocked;
+
         for (int i = 0; i < _cells.Count; i++)
         {
             var k = _sim.Balance.Kingdoms[i];
@@ -60,7 +70,9 @@ public partial class ConquestStrip : Control
             _cells[i].Name.Text = current
                 ? $"{Tr(k.Name)} {Roman(_sim.State.CycleTier)}" : Tr(k.Name);
             _cells[i].Name.AddThemeColorOverride("font_color",
-                current ? new Color("ffd670") : new Color("ffffff"));
+                current ? new Color("ffd670") : new Color("403342"));
+            _cells[i].Name.AddThemeColorOverride("font_outline_color", new Color("403342"));
+            _cells[i].Name.AddThemeConstantOverride("outline_size", current ? 4 : 0);
             _cells[i].Flag.Visible = i < _sim.State.PerksUnlocked;
         }
     }

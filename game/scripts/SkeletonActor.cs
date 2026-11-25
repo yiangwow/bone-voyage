@@ -1,3 +1,4 @@
+using System;
 using BoneVoyage.Sim;
 using Godot;
 
@@ -10,12 +11,15 @@ public partial class SkeletonActor : Node2D
     private AnimatedSprite2D _sprite = null!;
     private float _speedPx;
     private float _stopX;
+    private readonly Func<float, float> _speedMultAt;
 
-    public SkeletonActor(SkeletonTypeId type, SpriteFrames frames, float speedPx, float stopX)
+    public SkeletonActor(SkeletonTypeId type, SpriteFrames frames, float speedPx, float stopX,
+        Func<float, float> speedMultAt)
     {
         Type = type;
         _speedPx = speedPx;
         _stopX = stopX;
+        _speedMultAt = speedMultAt;
         _sprite = new AnimatedSprite2D { SpriteFrames = frames, Scale = new Vector2(2, 2) };
         AddChild(_sprite);
         _sprite.Play("walk");
@@ -25,7 +29,7 @@ public partial class SkeletonActor : Node2D
     public override void _Process(double delta)
     {
         if (!Walking) return;
-        var x = Position.X + _speedPx * (float)delta;
+        var x = Position.X + _speedPx * _speedMultAt(Position.X) * (float)delta;
         Position = new Vector2(Mathf.Min(x, _stopX), Position.Y);
     }
 
