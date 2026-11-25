@@ -39,8 +39,9 @@ public partial class ShopPanel : PanelContainer
 
     public override void _Ready()
     {
-        Position = new Vector2(16, 452);
-        Size = new Vector2(264, 268);
+        AnchorTop = 1; AnchorBottom = 1;
+        OffsetLeft = 16; OffsetRight = 280;
+        OffsetTop = -284; OffsetBottom = -16;
         var box = new VBoxContainer();
         box.AddThemeConstantOverride("separation", 2);
         AddChild(box);

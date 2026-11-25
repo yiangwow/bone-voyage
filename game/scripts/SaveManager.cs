@@ -22,7 +22,7 @@ public static class SaveManager
         }
     }
 
-    public static void Save(SimState state)
+    public static void Save(SimState state, SaveSettings settings)
     {
         using var f = FileAccess.Open(SavePath, FileAccess.ModeFlags.Write);
         if (f == null)
@@ -31,6 +31,6 @@ public static class SaveManager
             return;
         }
         f.StoreString(SaveCodec.ToJson(state,
-            DateTimeOffset.UtcNow.ToUnixTimeSeconds()));
+            DateTimeOffset.UtcNow.ToUnixTimeSeconds(), settings));
     }
 }

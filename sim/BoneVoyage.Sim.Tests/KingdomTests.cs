@@ -87,4 +87,44 @@ public class KingdomTests
         Assert.Equal(50.0, f1.BonesJackpot);            // growth^0
         Assert.Equal(100.0, f2.BonesJackpot);           // growth^1
     }
+
+    [Fact]
+    public void SpeedMultPerkMultipliesMarchSpeedOnceUnlocked()
+    {
+        var b = TestBalance.Make();
+        var k0 = b.Kingdoms[0] with { Perk = new PerkBalance(PerkId.SpeedMult, 1.5) };
+        var sim = new Simulation(b with { Kingdoms = new() { k0, b.Kingdoms[1] } });
+        Assert.Equal(5.0, sim.EffSpeed(SkeletonTypeId.Marcher), 10);
+        sim.State.PerksUnlocked = 1;
+        Assert.Equal(7.5, sim.EffSpeed(SkeletonTypeId.Marcher), 10);
+    }
+
+    [Fact]
+    public void OverkillWallHitChainsMultipleKingdomFallsInOneTick()
+    {
+        var b = TestBalance.Make();
+        var kingdoms = new System.Collections.Generic.List<KingdomDef>
+        {
+            b.Kingdoms[0] with { BaseWallHp = 10.0, Towers = new() },
+            b.Kingdoms[1] with { BaseWallHp = 20.0, Moats = new() },
+        };
+        var sim = new Simulation(b with { Kingdoms = kingdoms });
+        // one bomber (100 wall damage) already in the last zone, one zone from the wall
+        sim.State.Counts[(int)SkeletonTypeId.Bomber, 1] = 1;
+
+        var falls = new System.Collections.Generic.List<KingdomFell>();
+        for (int i = 0; i < 50 && falls.Count == 0; i++)
+            falls.AddRange(sim.Tick().OfType<KingdomFell>());
+
+        // 100 damage vs wall chain 10 -> 20 -> 20 (tier II) -> 40 (tier II):
+        // four falls in one tick, fifth wall (40, tier III) left at 40 - 10 = 30.
+        Assert.Equal(4, falls.Count);
+        Assert.Equal(4, sim.State.TotalFalls);
+        Assert.Equal(3, sim.State.CycleTier);
+        Assert.Equal(0, sim.State.KingdomIndex);
+        Assert.Equal(30.0, sim.State.WallHp, 6);
+        // jackpots double per fall: 50 * 2^0..2^3
+        Assert.Equal(new[] { 50.0, 100.0, 200.0, 400.0 },
+            falls.Select(f => f.BonesJackpot).ToArray());
+    }
 }

@@ -13,8 +13,9 @@ public partial class ArmoryPanel : PanelContainer
 
     public override void _Ready()
     {
-        Position = new Vector2(1000, 452);
-        Size = new Vector2(264, 268);
+        AnchorLeft = 1; AnchorRight = 1; AnchorTop = 1; AnchorBottom = 1;
+        OffsetLeft = -280; OffsetRight = -16;
+        OffsetTop = -284; OffsetBottom = -16;
         var box = new VBoxContainer();
         box.AddThemeConstantOverride("separation", 2);
         AddChild(box);

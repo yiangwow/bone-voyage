@@ -14,7 +14,11 @@ public partial class BattlefieldView : Node2D
     private readonly List<SkeletonActor> _actors = new();
     private readonly Dictionary<SkeletonTypeId, SpriteFrames> _frames = new();
     private readonly List<Node2D> _kingdomProps = new();
-    private static readonly string[] DeathAnims = { "die_wave", "die_salute" };
+    private Sprite2D _punchClock = null!;
+    private double _dingCooldown;
+    // sign is the rarer treat: ~20% of tower deaths
+    private static readonly string[] DeathAnims =
+        { "die_wave", "die_salute", "die_wave", "die_salute", "die_sign" };
 
     public BattlefieldView(Simulation sim) => _sim = sim;
 
@@ -29,7 +33,38 @@ public partial class BattlefieldView : Node2D
                 $"res://assets/sprites/{type.ToString().ToLower()}");
 
         Place("res://assets/sprites/necropolis.png", new Vector2(40, GroundY - 108), 2);
+        _punchClock = new Sprite2D
+        {
+            Texture = GD.Load<Texture2D>("res://assets/sprites/punchclock.png"),
+            Position = new Vector2(150, GroundY - 50),
+            Scale = new Vector2(2, 2), Centered = false, ZIndex = -9,
+        };
+        AddChild(_punchClock);
         RebuildKingdom();
+    }
+
+    public override void _Process(double delta)
+    {
+        if (_dingCooldown > 0) _dingCooldown -= delta;
+    }
+
+    // Cosmetic mirror of the sim's moat math: actors visibly wade. The sim's
+    // aggregate movement never depends on what actors do on screen.
+    private float SpeedMultAt(float x)
+    {
+        int zone = Mathf.Clamp(
+            (int)((x - RoadStartX) / ((float)_sim.Balance.ZoneLength * PxPerUnit)),
+            0, _sim.Balance.ZoneCount - 1);
+        return (float)_sim.MoatMult(zone);
+    }
+
+    private void Ding()
+    {
+        if (_dingCooldown > 0) return;
+        _dingCooldown = 0.5;
+        var tw = CreateTween();
+        tw.TweenProperty(_punchClock, "scale", new Vector2(2.35f, 1.65f), 0.06);
+        tw.TweenProperty(_punchClock, "scale", new Vector2(2f, 2f), 0.12);
     }
 
     private void Place(string path, Vector2 pos, float scale)
@@ -93,7 +128,7 @@ public partial class BattlefieldView : Node2D
                 case SkeletonsSpawned s: SpawnActors(s); break;
                 case SkeletonsDied d when d.Cause == DeathCause.Tower: KillActors(d); break;
                 case WallHit w: WhackActors(w); break;
-                case KingdomFell: RebuildKingdom(); break;
+                case KingdomFell k: RebuildKingdom(); Celebrate(k); break;
                 // WallCrumble deaths are covered by the whack animation
             }
         }
@@ -101,12 +136,13 @@ public partial class BattlefieldView : Node2D
 
     private void SpawnActors(SkeletonsSpawned e)
     {
+        Ding();
         int alive = _actors.Count(a => IsInstanceValid(a));
         _actors.RemoveAll(a => !IsInstanceValid(a));
         for (int i = 0; i < e.Count && alive + i < ActorCap; i++)
         {
             float speedPx = (float)_sim.EffSpeed(e.Type) * PxPerUnit;
-            var actor = new SkeletonActor(e.Type, _frames[e.Type], speedPx, WallX - 20f)
+            var actor = new SkeletonActor(e.Type, _frames[e.Type], speedPx, WallX - 20f, SpeedMultAt)
             {
                 Position = new Vector2(RoadStartX, GroundY + (float)GD.RandRange(-6, 18)),
             };
@@ -135,5 +171,42 @@ public partial class BattlefieldView : Node2D
             .Take(e.Count);
         foreach (var v in victims)
             v.PlayDeath("whack");
+    }
+
+    private void Celebrate(KingdomFell e)
+    {
+        var gradient = new Gradient();
+        gradient.Offsets = new float[] { 0f, 0.5f, 1f };   // set offsets first: Colors length must match
+        gradient.Colors = new[] { new Color("ffd670"), new Color("ffb74d"), new Color("ff9e86") };
+        var confetti = new CpuParticles2D
+        {
+            Position = new Vector2(WallX - 30, GroundY - 180),
+            Amount = 90, Lifetime = 1.8f, OneShot = true, Explosiveness = 0.95f,
+            Direction = new Vector2(-0.5f, -1f), Spread = 60f,
+            InitialVelocityMin = 140f, InitialVelocityMax = 280f,
+            Gravity = new Vector2(0, 240),
+            ScaleAmountMin = 2f, ScaleAmountMax = 4f,
+            ColorRamp = gradient, ZIndex = 5,
+        };
+        AddChild(confetti);
+        GetTree().CreateTimer(3.0).Timeout += confetti.QueueFree;
+
+        var caption = new Label
+        {
+            Text = string.Format(Tr("The union takes {0}!"),
+                Tr(_sim.Balance.Kingdoms[e.KingdomIndex].Name)),
+            CustomMinimumSize = new Vector2(1280, 0),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Position = new Vector2(0, 190), ZIndex = 6,
+        };
+        caption.AddThemeFontSizeOverride("font_size", 34);
+        caption.AddThemeColorOverride("font_color", new Color("ffd670"));
+        caption.AddThemeColorOverride("font_outline_color", new Color("403342"));
+        caption.AddThemeConstantOverride("outline_size", 8);
+        AddChild(caption);
+        var tw = CreateTween();
+        tw.TweenInterval(1.8);
+        tw.TweenProperty(caption, "modulate:a", 0.0f, 0.9f);
+        tw.TweenCallback(Callable.From(caption.QueueFree));
     }
 }

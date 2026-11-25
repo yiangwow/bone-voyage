@@ -24,6 +24,12 @@
       "frames": 6,
       "fps": 10,
       "loop": false
+    },
+    "die_sign": {
+      "row": 4,
+      "frames": 6,
+      "fps": 8,
+      "loop": false
     }
   }
 }

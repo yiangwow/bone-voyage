@@ -9,15 +9,20 @@ public partial class Main : Node2D
     private Simulation _sim = null!;
     private BattlefieldView? _battlefield;   // Task 10
     private Hud _hud = null!;
+    private SaveSettings _settings = SaveSettings.Default;
     private double _acc;
     private double _saveAcc;
     private string? _shotPath;
     private int _shotCountdown = -1;
+    private long _lastUnix = System.DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+    private const double MinOfflineSeconds = 60.0;
 
     public override void _Ready()
     {
         var json = FileAccess.GetFileAsString("res://balance.json");
-        _sim = new Simulation(BalanceData.Load(json), SaveManager.TryLoad());
+        SaveData? save = SaveManager.TryLoad();
+        _settings = save?.Settings?.Clamped() ?? SaveSettings.Default;
+        _sim = new Simulation(BalanceData.Load(json), save);
 
         // Dev tool: --kingdom=N forces a starting kingdom for screenshot/manual verification
         // of kingdoms other than the default (Meadowshire). Not exposed in the shipped UI.
@@ -29,6 +34,16 @@ public partial class Main : Node2D
                 _sim.State.KingdomIndex = idx;
                 _sim.State.WallHp = _sim.WallHpFor(idx, 1);
             }
+
+        // Offline progress: replay the time since the save was written. The
+        // wall clock lives here in game/; the sim only ever sees a duration.
+        if (save != null && save.TimestampUtcSeconds > 0)
+        {
+            double elapsed = System.DateTimeOffset.UtcNow.ToUnixTimeSeconds()
+                - save.TimestampUtcSeconds;
+            if (elapsed >= MinOfflineSeconds)
+                AddChild(new AwayReport(OfflineCalculator.Run(_sim, elapsed)));
+        }
 
         _battlefield = new BattlefieldView(_sim);
         AddChild(_battlefield);
@@ -46,10 +61,21 @@ public partial class Main : Node2D
 
     public override void _Process(double delta)
     {
-        _acc += delta;
+        // OS slept / laptop lid closed mid-session: route the gap through the
+        // offline calculator instead of catch-up ticking (which would fast-
+        // forward on screen and double-pay time the report already paid).
+        long now = System.DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        if (now - _lastUnix >= MinOfflineSeconds)
+        {
+            AddChild(new AwayReport(OfflineCalculator.Run(_sim, now - _lastUnix)));
+            _acc = 0;
+        }
+        _lastUnix = now;
+
+        // Live catch-up is capped at 1 s; anything longer is offline territory.
+        _acc = Mathf.Min(_acc + delta, 1.0);
         double dt = _sim.Balance.TickSeconds;
-        int safety = 0;
-        while (_acc >= dt && safety++ < 120)
+        while (_acc >= dt)
         {
             _acc -= dt;
             List<ISimEvent> events = _sim.Tick();
@@ -58,12 +84,12 @@ public partial class Main : Node2D
         _hud.Refresh();
 
         _saveAcc += delta;
-        if (_saveAcc >= 30.0) { _saveAcc = 0; SaveManager.Save(_sim.State); }
+        if (_saveAcc >= 30.0) { _saveAcc = 0; SaveManager.Save(_sim.State, _settings); }
 
         if (_shotCountdown > 0 && --_shotCountdown == 0)
         {
             GetViewport().GetTexture().GetImage().SavePng(_shotPath);
-            SaveManager.Save(_sim.State);
+            SaveManager.Save(_sim.State, _settings);
             GetTree().Quit();
         }
     }
@@ -72,7 +98,7 @@ public partial class Main : Node2D
     {
         if (what == NotificationWMCloseRequest)
         {
-            SaveManager.Save(_sim.State);
+            SaveManager.Save(_sim.State, _settings);
             GetTree().Quit();
         }
     }

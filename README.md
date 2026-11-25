@@ -34,3 +34,23 @@ to start a fresh run.
 
 ## Layout
 See CLAUDE.md. Short version: `sim/` is the game (pure C#, tested); `game/` is the view; `tools/spritegen/` is the art department.
+
+## Pacing (M3)
+Balance tuned so the first lap stays quick and every lap after it stretches
+out — greedy-buyer harness (`tools/balance/BoneVoyage.BalanceHarness`,
+`--hours 20`), measured against `game/balance.json`:
+
+| Milestone | Time |
+|---|---|
+| Meadowshire falls (K1, tier 1) | 4.6 min |
+| Cannonspire falls (K2, tier 1) | 16.4 min |
+| Knightholm falls (K3, tier 1) | 46.0 min |
+| Meadowshire falls again (tier 2, "fall 4") | 183.3 min (~3.1 h) |
+| Cannonspire falls again (tier 2, "fall 5") | 1103.0 min (~18.4 h) |
+| Total falls in a 20h idle run | 5 |
+
+Tuned via `kingdoms[1].baseWallHp` (Cannonspire), `kingdoms[2].baseWallHp`
+(Knightholm), and `cycle.wallHpGrowth` / `cycle.dpsGrowth` (per-lap wall and
+tower scaling). K1's wall and all Bones-currency upgrade costs are untouched,
+so the opening minutes feel exactly like before — the stretch only shows up
+once a kingdom is revisited on lap two.

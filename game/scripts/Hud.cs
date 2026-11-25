@@ -21,11 +21,23 @@ public partial class Hud : CanvasLayer
         _gold.AddThemeColorOverride("font_color", new Color("ffd670"));
         _employees = MakeLabel(new Vector2(16, 100), 14);
 
-        _wallBar = new ProgressBar
-        {
-            Position = new Vector2(980, 16), Size = new Vector2(284, 22),
-            ShowPercentage = false, MaxValue = 1.0
-        };
+        var wallLabel = MakeLabel(Vector2.Zero, 12);
+        wallLabel.Text = Tr("Wall integrity");
+        wallLabel.AnchorLeft = 1; wallLabel.AnchorRight = 1;
+        wallLabel.OffsetLeft = -300; wallLabel.OffsetRight = -16;
+        wallLabel.OffsetTop = 14; wallLabel.OffsetBottom = 30;
+
+        _wallBar = new ProgressBar { ShowPercentage = false, MaxValue = 1.0 };
+        _wallBar.AnchorLeft = 1; _wallBar.AnchorRight = 1;
+        _wallBar.OffsetLeft = -300; _wallBar.OffsetRight = -16;
+        _wallBar.OffsetTop = 34; _wallBar.OffsetBottom = 54;
+        var barBg = new StyleBoxFlat { BgColor = new Color("636470"), BorderColor = new Color("403342") };
+        barBg.SetBorderWidthAll(2);
+        barBg.SetCornerRadiusAll(4);
+        var barFill = new StyleBoxFlat { BgColor = new Color("ffd670") };
+        barFill.SetCornerRadiusAll(3);
+        _wallBar.AddThemeStyleboxOverride("background", barBg);
+        _wallBar.AddThemeStyleboxOverride("fill", barFill);
         AddChild(_wallBar);
 
         _shop = new ShopPanel(_sim);
